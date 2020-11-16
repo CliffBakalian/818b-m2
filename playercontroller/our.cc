@@ -1,7 +1,5 @@
-// Desc: Bigbob code for controlling a junk finding robot.
-// Author:  Jennifer Owen
-// Date: 16/04/2010
-// Updates (Stage4) Kevin Nickels 7 Aug 2013
+// Desc: Case Study 2 - multiple robots
+// Author:  Kevin Nickels
 
 #include <stdio.h>
 #include <unistd.h>
@@ -313,17 +311,17 @@ int main(int argc, char *argv[])
       using namespace PlayerCc;
 	
       PlayerClient    robot("localhost", 6665);
-
       Position2dProxy p2dProxy(&robot,0);
       RangerProxy      sonarProxy(&robot,0);
       BlobfinderProxy blobProxy(&robot,0);
       RangerProxy      laserProxy(&robot,1);
       SimulationProxy simProxy(&robot,0);
 
-      Position2dProxy p2dProxy2(&robot,1);
-      RangerProxy      sonarProxy2(&robot,2);
-      BlobfinderProxy blobProxy2(&robot,1);
-      RangerProxy      laserProxy2(&robot,3);
+      PlayerClient    robot2("localhost", 6666);
+      Position2dProxy p2dProxy2(&robot2,0);
+      RangerProxy      sonarProxy2(&robot2,0);
+      BlobfinderProxy blobProxy2(&robot2,0);
+      RangerProxy      laserProxy2(&robot2,1);
       
       double forwardSpeed, turnSpeed;
       double forwardSpeed2, turnSpeed2;
@@ -392,7 +390,7 @@ int main(int argc, char *argv[])
             // sleep(1);
 
             // read from the proxies
-            //robot2.Read();
+            robot2.Read();
 		
             if(blobProxy2.GetCount() == 0)
             {
