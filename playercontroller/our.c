@@ -8,8 +8,7 @@
 #include "audioshared.h"
 
 
-struct Robot
-{
+struct Robot {
 	playerc_client_t *robot;
 	playerc_position2d_t *p2dProxy;
 	playerc_ranger_t *sonarProxy;
@@ -18,12 +17,14 @@ struct Robot
 	double forwardSpeed;
 	double turnSpeed;
 	int sink;
-}typedef our_robot_t;
+} typedef our_robot_t;
 
 our_robot_t robots[5];
 
 playerc_map_t *map;
-int og_map[443][1086];
+int **og_map;
+double map_width_m;
+double map_height_m;
 
 // simple Queue
 // https://stackoverflow.com/a/43687183
@@ -74,15 +75,15 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 	if (src_id == rcv_id) { return -1; }
 	//printf(" src %d\n", src_id);
 	//printf("  %d %f %f should equal %f %f\n", src_id, s_px, s_py, robots[src_id].p2dProxy->px, robots[src_id].p2dProxy->py);
-	int r_i = globalToCell(14.0, robots[rcv_id].p2dProxy->py, map->height);
-	int r_j = globalToCell(34.0, robots[rcv_id].p2dProxy->px, map->width);
+	int r_i = globalToCell(map_height_m, robots[rcv_id].p2dProxy->py, map->height);
+	int r_j = globalToCell(map_width_m, robots[rcv_id].p2dProxy->px, map->width);
 	// generate a 2d array, perform BFS to find shortest path
 	// from src_id -> rcv_id
 	int t_map[map->height][map->width];
-	memcpy(t_map, og_map, sizeof(int) * 443 * 1086);
+	memcpy(t_map, og_map, sizeof(int) * map->height * map->width);
 	node_t *Q = NULL;
-	int s_i = globalToCell(14.0, s_py, map->height);
-	int s_j = globalToCell(34.0, s_px, map->width);
+	int s_i = globalToCell(map_height_m, s_py, map->height);
+	int s_j = globalToCell(map_width_m, s_px, map->width);
 	printf("    src  map cell: %d %d\n", s_i, s_j);
 	printf("    goal map cell: %d %d\n", r_i, r_j);
 	enqueue(&Q, s_i, s_j);
@@ -94,7 +95,7 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 		// dequeue Q
 		node_t C = dequeue(&Q);
 		// visit node
-		if (t_map[C.i][C.j] > 0) continue;
+		if (t_map[C.i][C.j] > 0) continue; // already visited!
 		t_map[C.i][C.j] = layer + 1;
 		layer++;
 		//printf(" %d %d\n", C.i, C.j);
@@ -168,8 +169,8 @@ void AvoidObstacles(double *forwardSpeed, double *turnSpeed, \
       //will avoid obstacles closer than 40cm
       double avoidDistance = 0.2;
       //will turn away at 60 degrees/sec
-      int avoidTurnSpeed = 30;
-	
+      int avoidTurnSpeed = 60;
+
       //left corner is sonar no. 2
       //right corner is sonar no. 3
       if(sp[2] < avoidDistance)
@@ -193,11 +194,10 @@ void AvoidObstacles(double *forwardSpeed, double *turnSpeed, \
       {
             //back off a little bit
             *forwardSpeed = -0.2;
-            *turnSpeed = avoidTurnSpeed;  
+            *turnSpeed = avoidTurnSpeed;
             printf("avoiding obstacle\n");
             return;
       }
-      
       return; //do nothing
 }
 
@@ -243,10 +243,8 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
       }
       blob = bfp->blobs[biggestBlob];
       //printf("biggest blob is %i with area %d\n",biggestBlob,biggestBlobArea);
-            
       // find centre of image
       centre = bfp->width/2;
-      
       //adjust turn to centre the blob in image
       /*if the blob's centre is within some margin of the image 
       centre then move forwards, otherwise turn so that it is 
@@ -276,26 +274,22 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
             *turnSpeed = 0;
             //printf("straight on\n");
       }
-      
       return;
 }
 
 void our_set_move(int id, double fs, double ts){
-			robots[id].forwardSpeed = fs;
-			robots[id].turnSpeed = ts;
-			if(ts == 5) printf("turning left on %d\n", id);
-			else if(ts == -5) printf("turning right on %d\n", id);
-			else printf("straight on %d\n", id);
+	robots[id].forwardSpeed = fs;
+	robots[id].turnSpeed = ts;
 }
 
 void iGotSomeData(playerc_opaque_t *audio, int rec_id){
-	printf("recieving signal on %d:\n", rec_id);
 	double x = ((our_audio_t*)audio->data)->px;
 	double y = ((our_audio_t*)audio->data)->py;
 	int source_id  = ((our_audio_t*)audio->data)->id;
 	int sink  = ((our_audio_t*)audio->data)->sink;
-	printf("%f %f %d %d\n", x, y, source_id, sink);
 	if(source_id == -1 || source_id == rec_id) return;
+	printf("receiving signal on %d:\n", rec_id);
+	printf("%f %f %d %d\n", x, y, source_id, sink);
 	if(robots[rec_id].sink == -1)
 		robots[rec_id].sink = sink;
 //	else if (sink != robots[rec_id].sink) return;
@@ -305,6 +299,9 @@ void iGotSomeData(playerc_opaque_t *audio, int rec_id){
 	double py = robots[rec_id].p2dProxy->py;
 	double pa = robots[rec_id].p2dProxy->pa;
 	double bound = 1.0/6.0;
+	int ts = 7;
+	int fs = .6;
+	int tfs = 0.1;
 	while(pa > 2*M_PI)
 		pa = pa - 2*M_PI;
 	while(pa < 0)
@@ -312,32 +309,32 @@ void iGotSomeData(playerc_opaque_t *audio, int rec_id){
 	printf("rec: %d, dir: %d yaw: %f\n", rec_id, dir, pa);
 	if (dir == 0){
 		if (pa < M_PI/2 - bound || pa > M_PI/2)
-			our_set_move(rec_id, 0, 5);
+			our_set_move(rec_id, tfs, ts);
 		else if (pa > M_PI/2 + bound && pa <= M_PI/2)
-			our_set_move(rec_id, 0, -5);
+			our_set_move(rec_id, tfs, -ts);
 		else
-			our_set_move(rec_id, 0.1, 0);
+			our_set_move(rec_id, fs, 0);
 	}else if (dir == 1){
 		if (pa < 2*M_PI - bound && pa >= M_PI)
-			our_set_move(rec_id, 0, 5);
+			our_set_move(rec_id, tfs, ts);
 		else if (pa > 0 + bound && pa < M_PI)
-			our_set_move(rec_id, 0, -5);
+			our_set_move(rec_id, tfs, -ts);
 		else
-			our_set_move(rec_id, 0.1, 0);
+			our_set_move(rec_id, fs, 0);
 	}else if (dir == 2){
 		if (pa < 3*M_PI/2 - bound && pa >= M_PI/2)
-			our_set_move(rec_id, 0, 5);
+			our_set_move(rec_id, tfs, ts);
 		else if (pa > 3*M_PI/2 + bound || pa < M_PI/2)
-			our_set_move(rec_id, 0, -5);
+			our_set_move(rec_id, tfs, -ts);
 		else
-			our_set_move(rec_id, 0.1, 0);
+			our_set_move(rec_id, fs, 0);
 	}else if (dir == 3){
 		if (pa < M_PI - bound)
-			our_set_move(rec_id, 0, 5);
+			our_set_move(rec_id, tfs, ts);
 		else if (pa > M_PI + bound)
-			our_set_move(rec_id, 0, -5);
+			our_set_move(rec_id, tfs, -ts);
 		else
-			our_set_move(rec_id, 0.1, 0);
+			our_set_move(rec_id, fs, 0);
 	}
 }
 
@@ -370,21 +367,30 @@ int main(int argc, char *argv[]) {
 		if (playerc_simulation_subscribe(simProxy, PLAYER_OPEN_MODE)) return -1;
 		map = playerc_map_create(robots[0].robot, 0);
 		if (playerc_map_subscribe(map, PLAYER_OPEN_MODE)) return -1;
+		// calculate original map
 		playerc_map_get_map(map);
-		// calculate original map (10cm / pixel)
-		printf("map info: %d %d %f\n", map->width, map->height, map->resolution); // map->resolution = m/cell
-		memcpy(og_map, map->cells, sizeof(char) * map->width * map->height);
+		printf("map info:\n  w: %d h: %d r: %f\n", map->width, map->height, map->resolution); // map->resolution = m/cell
+		map_width_m = map->width * map->resolution;
+		map_height_m = map->height * map->resolution;
+		printf("  w: %fm h: %fm\n", map_width_m, map_height_m);
+		og_map = malloc(sizeof(int *) * map->height + sizeof(int) * map->width * map->height);
+		for (int i = 0; i < map->height; i++) {
+			og_map[i] = ((int*) (og_map + map->height)) + map->width * i;
+		}
+		// memcpy(og_map, map->cells, sizeof(char) * map->width * map->height);
 		// -1=empty, 0=unknown, 1=occupied
 		for (int i = 0; i < map->height; i++) {
 			for (int j = 0; j < map->width; j++) {
+				og_map[i][j] = (int) *(map->cells + i*map->height + j);
+				printf("%d ", og_map[i][j]);
 				if (og_map[i][j] > 0) {
 					og_map[i][j] = -1;
 				} else {
 					og_map[i][j] = 0;
 				}
-				// printf("%d ", og_map[i][j]);
+				printf("%d ", og_map[i][j]);
 			}
-			// printf("\n");
+			printf("\n");
 		}
 
 		op = playerc_client_create(NULL, "localhost", 6670);
@@ -466,10 +472,16 @@ int main(int argc, char *argv[]) {
 
 	playerc_simulation_unsubscribe(simProxy);
 	playerc_simulation_destroy(simProxy);
-  playerc_opaque_unsubscribe(audio);
-  playerc_opaque_destroy(audio);
-  playerc_client_disconnect(op);
-  playerc_client_destroy(op);
-  return 0;
+	playerc_opaque_unsubscribe(audio);
+	playerc_opaque_destroy(audio);
+	playerc_client_disconnect(op);
+	playerc_client_destroy(op);
+
+	for (int i = 0; i < map->height; i++) {
+		free(og_map[i]);
+	}
+	free(og_map);
+
+	return 0;
 }
 

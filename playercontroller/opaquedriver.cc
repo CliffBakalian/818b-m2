@@ -151,8 +151,7 @@ int OpaqueDriver::ProcessMessage(QueuePointer & resp_queue,
   // If you handle the message successfully, return 0.  Otherwise,
   // return -1, and a NACK will be sent for you, if a response is required.
 	our_audio_t *temp = (our_audio_t *)((player_opaque_data_t *)data)->data;
-	int id = temp->id;
-	audioStruct.id = id;
+	audioStruct.id = temp->id;
 	audioStruct.sink = temp->sink;	
 	audioStruct.px = temp->px; 
 	audioStruct.py = temp->py;
@@ -180,26 +179,12 @@ void OpaqueDriver::Main()
 
 void OpaqueDriver::RefreshData()
 {
-	int id = audioStruct.id;
-
+	//puts("about to send");
 	uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
 		Publish(device_addr, 
           PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
           reinterpret_cast<void*>(&mData), size, NULL);
-/*
-		Publish(device_addr, 
-          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
-          reinterpret_cast<void*>(&mData), size, NULL);
-		Publish(device_addr, 
-          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
-          reinterpret_cast<void*>(&mData), size, NULL);
-		Publish(device_addr, 
-          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
-          reinterpret_cast<void*>(&mData), size, NULL);
-		Publish(device_addr, 
-          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
-          reinterpret_cast<void*>(&mData), size, NULL);
-*/
+	//puts("full send");
 }
 ////////////////////////////////////////////////////////////////////////////////
 // Extra stuff for building a shared object.
