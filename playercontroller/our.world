@@ -24,17 +24,36 @@ floorplan
 
 bigbob
 (
-	name "r1" 
+	name "r0" 
 	pose [-5 -6 0 45] 
-	color "green"
+	color "yellow"
+)
+bigbob
+(
+	name "r1" 
+	pose [ -2 2 0 225] 
+	color "yellow"
 )
 bigbob
 (
 	name "r2" 
-	pose [ -2 2 0 225] 
+	pose [ 3 -4 0 225] 
 	color "yellow"
 )
 
+bigbob
+(
+	name "r3" 
+	pose [ 6 2 0 225] 
+	color "yellow"
+)
+
+bigbob
+(
+	name "r4" 
+	pose [ -2 -2 0 225] 
+	color "yellow"
+)
 
 define orange model
 (

@@ -12,11 +12,23 @@
 
 struct Item
 {
-      char name[16];
-      double x;
-      double y;
+	char name[16];
+	double x;
+	double y;
 }typedef item_t;
 
+struct Robot
+{
+	playerc_client_t *robot;
+	playerc_position2d_t *p2dProxy;
+	playerc_ranger_t *sonarProxy;
+	playerc_blobfinder_t *blobProxy;
+	playerc_ranger_t *laserProxy;
+	double forwardSpeed;
+	double turnSpeed;
+}typedef our_robot_t;
+
+our_robot_t robots[5];
 /**
 Randomly assigns new speeds into the given addresses. 
 This function will always write to the given addresses.
@@ -300,220 +312,125 @@ int FindItem(item_t *itemList, int listLength, playerc_simulation_t *sim, char *
 
 int main(int argc, char *argv[])
 {	
-	  playerc_client_t *robot;
-	  playerc_position2d_t *p2dProxy;
-	  playerc_ranger_t *sonarProxy;
-	  playerc_blobfinder_t *blobProxy;
-	  playerc_ranger_t *laserProxy;
 	  playerc_simulation_t *simProxy;
 
 		playerc_client_t *op;		
-		
-		op = playerc_client_create(NULL, "localhost", 6668);
-		if (playerc_client_connect(op) != 0)
-			{
-				puts( "Failed. Quitting." );
-				return -1;
-			}
+
+		for(int i = 0; i< 5; i++){
+			robots[i].robot = playerc_client_create(NULL, "localhost", 6665+i);
+			if (0 != playerc_client_connect(robots[i].robot)) return -1;
+			robots[i].p2dProxy = playerc_position2d_create(robots[i].robot, 0);
+			if (playerc_position2d_subscribe(robots[i].p2dProxy, PLAYER_OPEN_MODE)) return -1;
+			robots[i].sonarProxy = playerc_ranger_create(robots[i].robot, 0);
+			if (playerc_ranger_subscribe(robots[i].sonarProxy, PLAYER_OPEN_MODE)) return -1;
+			robots[i].blobProxy = playerc_blobfinder_create(robots[i].robot, 0);
+			if (playerc_blobfinder_subscribe(robots[i].blobProxy, PLAYER_OPEN_MODE)) return -1;
+			robots[i].laserProxy = playerc_ranger_create(robots[i].robot, 1);
+			if (playerc_ranger_subscribe(robots[i].laserProxy, PLAYER_OPEN_MODE)) return -1;
+
+			playerc_position2d_enable(robots[i].p2dProxy,1);
+
+			playerc_position2d_get_geom(robots[i].p2dProxy);
+			playerc_ranger_get_geom(robots[i].sonarProxy);
+			playerc_ranger_get_geom(robots[i].laserProxy);
+	
+		}
+		simProxy = playerc_simulation_create(robots[0].robot, 0);
+		if (playerc_simulation_subscribe(simProxy, PLAYER_OPEN_MODE)) return -1;
+
+		op = playerc_client_create(NULL, "localhost", 6670);
+		if (playerc_client_connect(op) != 0){
+			puts( "Failed. Quitting." );
+			return -1;
+		}
 
 		playerc_opaque_t *audio = playerc_opaque_create(op, 0);
 		if (playerc_opaque_subscribe(audio, PLAYER_OPEN_MODE))
 			return -1;
 
-	  playerc_client_t *robot2;
-	  playerc_position2d_t *p2dProxy2;
-	  playerc_ranger_t *sonarProxy2;
-	  playerc_blobfinder_t *blobProxy2;
-	  playerc_ranger_t *laserProxy2;
+		item_t itemList[8];
 
-	  /* Create a client and connect it to the server. */
-	  robot = playerc_client_create(NULL, "localhost", 6665);
-	  if (0 != playerc_client_connect(robot)) return -1;
-	  robot2 = playerc_client_create(NULL, "localhost", 6666);
-	  if (0 != playerc_client_connect(robot2)) return -1;
+		RefreshItemList(itemList, simProxy);
 
-	  /* Create and subscribe to devices. */
-	  p2dProxy = playerc_position2d_create(robot, 0);
-	  if (playerc_position2d_subscribe(p2dProxy, PLAYER_OPEN_MODE)) return -1;
-	  sonarProxy = playerc_ranger_create(robot, 0);
-	  if (playerc_ranger_subscribe(sonarProxy, PLAYER_OPEN_MODE)) return -1;
-	  blobProxy = playerc_blobfinder_create(robot, 0);
-	  if (playerc_blobfinder_subscribe(blobProxy, PLAYER_OPEN_MODE)) return -1;
-	  laserProxy = playerc_ranger_create(robot, 1);
-	  if (playerc_ranger_subscribe(laserProxy, PLAYER_OPEN_MODE)) return -1;
-	  simProxy = playerc_simulation_create(robot, 0);
-	  if (playerc_simulation_subscribe(simProxy, PLAYER_OPEN_MODE)) return -1;
-
-	  p2dProxy2 = playerc_position2d_create(robot2, 0);
-	  if (playerc_position2d_subscribe(p2dProxy2, PLAYER_OPEN_MODE)) return -1;
-	  sonarProxy2 = playerc_ranger_create(robot2, 0);
-	  if (playerc_ranger_subscribe(sonarProxy2, PLAYER_OPEN_MODE)) return -1;
-	  blobProxy2 = playerc_blobfinder_create(robot2, 0);
-	  if (playerc_blobfinder_subscribe(blobProxy2, PLAYER_OPEN_MODE)) return -1;
-	  laserProxy2 = playerc_ranger_create(robot2, 1);
-	  if (playerc_ranger_subscribe(laserProxy2, PLAYER_OPEN_MODE)) return -1;
-
-      double forwardSpeed, turnSpeed;
-      double forwardSpeed2, turnSpeed2;
-      item_t itemList[8];
+		srand(time(NULL));
+		while(true){		
+			for(int i = 0; i < 5; i++){
+				// read from the proxies
+				playerc_client_read(robots[i].robot);
 	
-      RefreshItemList(itemList, simProxy);
-	
-      srand(time(NULL));
-	
-      //enable motors
-	  playerc_position2d_enable(p2dProxy,1);
-	  playerc_position2d_enable(p2dProxy2,1);
+				if(robots[i].blobProxy->blobs_count == 0){
+					//wander
+					printf("%d wandering\n",i);
+					Wander(&robots[i].forwardSpeed, &robots[i].turnSpeed);
+				}
+				else{
+					//move towards the item
+					printf("%d moving to item\n", i);
+					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
+				}
+				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
+					int destroyThis;
+					destroyThis = FindItem(itemList, 8, simProxy,(char *)"bob1");
+					
+					if(destroyThis != -1){
+						//move it out of the simulation
+						printf("%d collecting item\n",i);
+						playerc_simulation_set_pose2d(simProxy,itemList[destroyThis].name, -10, -10, 0);
+						RefreshItemList(itemList, simProxy);
+					}
+				}
+				//avoid obstacles
+				AvoidObstacles(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].sonarProxy);
 
-      //request geometries
-	  playerc_position2d_get_geom(p2dProxy);
-	  playerc_ranger_get_geom(sonarProxy);
-	  playerc_ranger_get_geom(laserProxy);
-      //blobfinder doesn't have geometry
-	  playerc_position2d_get_geom(p2dProxy2);
-	  playerc_ranger_get_geom(sonarProxy2);
-	  playerc_ranger_get_geom(laserProxy2);
-      //blobfinder2 doesn't have geometry
-	
-      while(true)
-      {		
-            // read from the proxies
-			playerc_client_read(robot);
+				//set motors
+				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
+			}
 		
-            if(blobProxy->blobs_count == 0)
-            {
-                  //wander
-                  printf("1 wandering\n");
-                  Wander(&forwardSpeed, &turnSpeed);
-            }
-            else
-            {
-                  //move towards the item
-                  printf("1 moving to item\n");
-                  MoveToItem(&forwardSpeed, &turnSpeed, blobProxy);
-            }
-      	
-      	
-            if(laserProxy->ranges_count >= 89 && laserProxy->ranges[89] < 0.25)
-            {
-                  int destroyThis;
+			if (playerc_client_peek(op, 100) > 0) 
+				playerc_client_read(op);
 
-                  destroyThis = FindItem(itemList, 8, simProxy,(char *)"bob1");
-                  
-                  if(destroyThis != -1)
-                  {
-		            //move it out of the simulation
-		            printf("1 collecting item\n");
-					playerc_simulation_set_pose2d(simProxy,itemList[destroyThis].name, -10, -10, 0);
-		            RefreshItemList(itemList, simProxy);
-		      }
-            }
-            //avoid obstacles
-            AvoidObstacles(&forwardSpeed, &turnSpeed, sonarProxy);
-		
-            //set motors
-  			playerc_position2d_set_cmd_vel(p2dProxy, forwardSpeed, 0.0, DTOR(turnSpeed), 1);
-            //sleep(1);
+			// If there's new data
+			if (audio->data_count>0) {
+				// print it
+				printf("%d\n", ((test_t*)audio->data)->uint8);
+				// clear read data
+				audio->data_count=0;
+			}
+			// send a message approximately every two seconds
+			if ( rand() % 4 == 0 ) {   
+				// clear a new data packet
+				player_opaque_data_t audio_msg;
+				test_t *thingy;
+				thingy->uint8 = 10;
+				audio_msg.data_count=sizeof(test_t);
+				playerc_opaque_cmd(audio, &audio_msg);
+			}
 
+			sleep(1);
 			
-				if (playerc_client_peek(op, 100) > 0) 
-					playerc_client_read(op);
-
-				// If there's new data
-				if (audio->data_count>0) 
-				{
-					// print it
-					printf("%d\n", ((test_t*)audio->data)->uint8);
-
-					// clear read data
-					audio->data_count=0;
-				}
-
-				// send a message approximately every two seconds
-				if ( rand() % 4 == 0 ) 
-				{   
-					// clear a new data packet
-					player_opaque_data_t audio_msg;
-					test_t *thingy;
-					thingy->uint8 = 10;
-					audio_msg.data_count=sizeof(test_t);
-				
-					playerc_opaque_cmd(audio, &audio_msg);
-				}
-
-            // read from the proxies
-			playerc_client_read(robot2);
-		
-            if(blobProxy2->blobs_count == 0)
-            {
-                  //wander
-                  printf("2 wandering\n");
-                  Wander(&forwardSpeed2, &turnSpeed2);
-            }
-            else
-            {
-                  //move towards the item
-                  printf("2 moving to item\n");
-                  MoveToItem(&forwardSpeed2, &turnSpeed2, blobProxy2);
-            }
-      	
-      	
-            if(laserProxy2->ranges_count >= 89 && laserProxy2->ranges[89] < 0.25)
-            {
-                  int destroyThis;
-
-                  destroyThis = FindItem(itemList, 8, simProxy,(char *)"bob2");
-                  
-                  if(destroyThis != -1)
-                  {
-		            //move it out of the simulation
-		            printf("2 collecting item\n");
-					playerc_simulation_set_pose2d(simProxy,itemList[destroyThis].name, -10, -10, 0);
-		            RefreshItemList(itemList, simProxy);
-		      }
-            }
-            //avoid obstacles
-            AvoidObstacles(&forwardSpeed2, &turnSpeed2, sonarProxy2);
-		
-            //set motors
-  			playerc_position2d_set_cmd_vel(p2dProxy2, forwardSpeed2, 0.0, DTOR(turnSpeed2), 1);
-            sleep(1);
-				
-      }
+		}
 
 
 	/* Shutdown */
-	playerc_position2d_unsubscribe(p2dProxy);
-	playerc_ranger_unsubscribe(sonarProxy);
-	playerc_blobfinder_unsubscribe(blobProxy);
-	playerc_ranger_unsubscribe(laserProxy);
+	for(int i=0; i<5; i++){
+		playerc_position2d_unsubscribe(robots[i].p2dProxy);
+		playerc_ranger_unsubscribe(robots[i].sonarProxy);
+		playerc_blobfinder_unsubscribe(robots[i].blobProxy);
+		playerc_ranger_unsubscribe(robots[i].laserProxy);
+
+		playerc_position2d_destroy(robots[i].p2dProxy); 
+		playerc_ranger_destroy(robots[i].sonarProxy);
+		playerc_blobfinder_destroy(robots[i].blobProxy);
+		playerc_ranger_destroy(robots[i].laserProxy);
+
+		playerc_client_disconnect(robots[i].robot);
+		playerc_client_destroy(robots[i].robot);
+	}
+
 	playerc_simulation_unsubscribe(simProxy);
-
-	playerc_position2d_unsubscribe(p2dProxy2);
-	playerc_ranger_unsubscribe(sonarProxy2);
-	playerc_blobfinder_unsubscribe(blobProxy2);
-	playerc_ranger_unsubscribe(laserProxy2);
-
-	playerc_position2d_destroy(p2dProxy); 
-	playerc_ranger_destroy(sonarProxy);
-	playerc_blobfinder_destroy(blobProxy);
-	playerc_ranger_destroy(laserProxy);
 	playerc_simulation_destroy(simProxy);
-
-	playerc_position2d_destroy(p2dProxy2); 
-	playerc_ranger_destroy(sonarProxy2);
-	playerc_blobfinder_destroy(blobProxy2);
-	playerc_ranger_destroy(laserProxy2);
-
-
   playerc_opaque_unsubscribe(audio);
   playerc_opaque_destroy(audio);
-
-    playerc_client_disconnect(robot);
-    playerc_client_destroy(robot);
-    playerc_client_disconnect(robot2);
-    playerc_client_destroy(robot2);
-
   playerc_client_disconnect(op);
   playerc_client_destroy(op);
   return 0;
