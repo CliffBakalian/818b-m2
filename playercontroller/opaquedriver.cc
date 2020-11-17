@@ -72,7 +72,7 @@ class OpaqueDriver : public ThreadedDriver
     virtual void RefreshData();
 
     // This is the structure we want to send
-    test_t mTestStruct;
+    our_audio_t audioStruct;
 
     // This is the data we store and send
     player_opaque_data_t mData;
@@ -105,16 +105,13 @@ OpaqueDriver::OpaqueDriver(ConfigFile* cf, int section)
     : ThreadedDriver(cf, section, false, PLAYER_MSGQUEUE_DEFAULT_MAXLEN,
              PLAYER_OPAQUE_CODE)
 {
-  mData.data_count = sizeof(test_t);
-  mData.data = reinterpret_cast<uint8_t*>(&mTestStruct);
+  mData.data_count = sizeof(our_audio_t);
+  mData.data = reinterpret_cast<uint8_t*>(&audioStruct);
 
-  mTestStruct.uint8 = 0;
-  mTestStruct.int8 = 0;
-  mTestStruct.uint16 = 0;
-  mTestStruct.int16 = 0;
-  mTestStruct.uint32 = 0;
-  mTestStruct.int32 = 0;
-  mTestStruct.doub = 0;
+	audioStruct.id = -1;
+	audioStruct.sink = -1;
+	audioStruct.px = 0;
+	audioStruct.py = 0;
 
   return;
 }
@@ -127,7 +124,6 @@ int OpaqueDriver::MainSetup()
 
   // Here you do whatever is necessary to setup the device, like open and
   // configure a serial port.
-
 
   puts("Opaque driver ready");
 
@@ -154,7 +150,12 @@ int OpaqueDriver::ProcessMessage(QueuePointer & resp_queue,
   // Process messages here.  Send a response if necessary, using Publish().
   // If you handle the message successfully, return 0.  Otherwise,
   // return -1, and a NACK will be sent for you, if a response is required.
-	printf("%x", *data);
+	our_audio_t *temp = (our_audio_t *)((player_opaque_data_t *)data)->data;
+	int id = temp->id;
+	audioStruct.id = id;
+	audioStruct.sink = temp->sink;	
+	audioStruct.px = temp->px; 
+	audioStruct.py = temp->py;
   return(0);
 }
 
@@ -179,19 +180,26 @@ void OpaqueDriver::Main()
 
 void OpaqueDriver::RefreshData()
 {
-   mTestStruct.uint8 += 1;
-   mTestStruct.int8 += 1;
-   mTestStruct.uint16 += 5;
-   mTestStruct.int16 += 5;
-   mTestStruct.uint32 += 10;
-   mTestStruct.int32 += 10;
-   mTestStruct.doub = sin(mTestStruct.uint8/10.0);
+	int id = audioStruct.id;
 
-  // only send the data we need to
-  uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
-  Publish(device_addr, 
+	uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
+		Publish(device_addr, 
           PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
           reinterpret_cast<void*>(&mData), size, NULL);
+/*
+		Publish(device_addr, 
+          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
+          reinterpret_cast<void*>(&mData), size, NULL);
+		Publish(device_addr, 
+          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
+          reinterpret_cast<void*>(&mData), size, NULL);
+		Publish(device_addr, 
+          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
+          reinterpret_cast<void*>(&mData), size, NULL);
+		Publish(device_addr, 
+          PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
+          reinterpret_cast<void*>(&mData), size, NULL);
+*/
 }
 ////////////////////////////////////////////////////////////////////////////////
 // Extra stuff for building a shared object.
