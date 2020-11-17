@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <libplayerc/playerc.h>
-#include "sharedstruct.h"
+#include "audioshared.h"
 
 struct Item
 {
@@ -307,8 +307,10 @@ int FindItem(item_t *itemList, int listLength, playerc_simulation_t *sim, char *
         
       return closestItem;
 }
+//return -1 if not found, 0 if north, 1 if west, 2 if south and 3 if west.
+int whereAudioFrom(int souce_id, int rec_id, double px, double py){
 
-
+}
 
 int main(int argc, char *argv[])
 {	
@@ -353,6 +355,7 @@ int main(int argc, char *argv[])
 		RefreshItemList(itemList, simProxy);
 
 		srand(time(NULL));
+		int our_c = 5;
 		while(true){		
 			for(int i = 0; i < 5; i++){
 				// read from the proxies
@@ -367,6 +370,7 @@ int main(int argc, char *argv[])
 					//move towards the item
 					printf("%d moving to item\n", i);
 					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
+					
 				}
 				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
 					int destroyThis;
@@ -384,27 +388,33 @@ int main(int argc, char *argv[])
 
 				//set motors
 				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
+
+				//print position and stuff to driver
+				player_opaque_data_t audio_msg;
+				our_audio_t thingy;
+				thingy.px = robots[i].p2dProxy->px;
+				thingy.py = robots[i].p2dProxy->py;
+				thingy.id = i;
+				thingy.sink = 1;
+				audio_msg.data = (uint8_t *)&thingy;
+				audio_msg.data_count=sizeof(our_audio_t);
+				playerc_opaque_cmd(audio, &audio_msg);
+				printf("sending signal\n");
+				printf("%f %f %d %d\n", thingy.px,thingy.py,
+												thingy.sink,thingy.id);
+				fflush(stdout);
+				//read audio from driver
+				if (playerc_client_peek(op, 100) > 0) 
+					playerc_client_read(op);
+				if (audio->data_count>0) {
+					printf("recieving singal on %d:\n", i);
+					printf("%f %f %d %d\n", ((our_audio_t*)audio->data)->px,((our_audio_t*)audio->data)->py,
+													((our_audio_t*)audio->data)->sink,((our_audio_t*)audio->data)->id);
+					fflush(stdout);
+					audio->data_count=0;
+				}
 			}
 		
-			if (playerc_client_peek(op, 100) > 0) 
-				playerc_client_read(op);
-
-			// If there's new data
-			if (audio->data_count>0) {
-				// print it
-				printf("%d\n", ((test_t*)audio->data)->uint8);
-				// clear read data
-				audio->data_count=0;
-			}
-			// send a message approximately every two seconds
-			if ( rand() % 4 == 0 ) {   
-				// clear a new data packet
-				player_opaque_data_t audio_msg;
-				test_t *thingy;
-				thingy->uint8 = 10;
-				audio_msg.data_count=sizeof(test_t);
-				playerc_opaque_cmd(audio, &audio_msg);
-			}
 
 			sleep(1);
 			
