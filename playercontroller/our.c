@@ -33,27 +33,28 @@ typedef struct node {
 	struct node *next;
 } node_t;
 void enqueue(node_t **head, int i, int j) {
-	printf("about to malloc\n");
+	//printf("about to malloc\n");
 	node_t *new_node = malloc(sizeof(node_t));
 	if (!new_node) return;
-	printf("  no memory issue\n");
+	//printf("  no memory issue\n");
 	new_node->i = i;
 	new_node->j = j;
 	new_node->next = *head;
 	*head = new_node;
-	printf("  allocated new node\n");
+	//printf("  allocated new node\n");
 }
-node_t* dequeue(node_t **head) {
+node_t dequeue(node_t **head) {
 	node_t *curr, *prev = NULL;
-	node_t *retval;
-	if (*head == NULL) return NULL;
+	node_t retval = {-1, -1, NULL};
+	if (*head == NULL) return retval;
 	curr = *head;
 	while (curr->next != NULL) {
 		prev = curr;
 		curr = curr->next;
 	}
-	retval->i = curr->i;
-	retval->j = curr->j;
+	retval.i = curr->i;
+	retval.j = curr->j;
+	//printf("     %d %d\n", retval->i, retval->j);
 	free(curr);
 	if (prev) {
 		prev->next = NULL;
@@ -62,15 +63,17 @@ node_t* dequeue(node_t **head) {
 	}
 	return retval;
 }
+
 int globalToCell(double g_max_m, double g_curr_m, int pixels) {
-	printf(" gtc: %f %f %d\n", g_curr_m, g_max_m, pixels);
+	//printf(" gtc: %f %f %d\n", g_curr_m, g_max_m, pixels);
 	return (int) floor((g_curr_m + g_max_m/2) / g_max_m * pixels);
 }
 //return -1 if not found, 0 if north, 1 if east, 2 if south and 3 if west.
 int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
+	printf("--- AUDIO PROP ALGO : %d -> %d\n", src_id, rcv_id);
 	if (src_id == rcv_id) { return -1; }
-	printf(" src %d\n", src_id);
-	printf("  %d %f %f should equal %f %f\n", src_id, s_px, s_py, robots[src_id].p2dProxy->px, robots[src_id].p2dProxy->py);
+	//printf(" src %d\n", src_id);
+	//printf("  %d %f %f should equal %f %f\n", src_id, s_px, s_py, robots[src_id].p2dProxy->px, robots[src_id].p2dProxy->py);
 	int r_i = globalToCell(14.0, robots[rcv_id].p2dProxy->py, map->height);
 	int r_j = globalToCell(34.0, robots[rcv_id].p2dProxy->px, map->width);
 	printf("%d %d\n", r_i, r_j);
@@ -86,31 +89,34 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 	// do BFS
 	int layer = 0;
 	int brk = -1;
-	while (Q != NULL && brk == -1) {
-		printf("BFS iter %d\n", layer);
+	while (Q != NULL && brk == -1) { // todo, calculate layer
+		//printf("BFS iter %d\n", layer);
 		// dequeue Q
-		node_t *C = dequeue(&Q);
+		node_t C = dequeue(&Q);
+		//printf(" %d %d\n", C.i, C.j);
 		// calculate neighbors
-		node_t top = {C->i-1, C->j, NULL};
-		node_t bot = {C->i+1, C->j, NULL};
-		node_t lef = {C->i, C->j-1, NULL};
-		node_t rig = {C->i, C->j+1, NULL};
+		node_t top = {C.i-1, C.j, NULL};
+		node_t bot = {C.i+1, C.j, NULL};
+		node_t lef = {C.i, C.j-1, NULL};
+		node_t rig = {C.i, C.j+1, NULL};
 		// enqueue nodes
-		printf(" %d %d \n", top.i, top.j);
+		//printf(" %d %d %d\n", top.i, top.j, t_map[top.i][top.j]);
 		if (top.i > -1 && t_map[top.i][top.j] == 0) { enqueue(&Q, top.i, top.j); }
 		if (bot.i < map->height && t_map[bot.i][bot.j] == 0) { enqueue(&Q, bot.i, bot.j); }
 		if (lef.j > -1 && t_map[lef.i][lef.j] == 0) { enqueue(&Q, lef.i, lef.j); }
 		if (rig.j < map->width && t_map[rig.i][rig.j] == 0) { enqueue(&Q, rig.i, rig.j); }
-		printf(" enqueue-d 4 nodes\n");
+		//printf(" enqueue-d 4 nodes\n");
 		// check for robot
 		if (top.i == r_i && top.j == r_j) { brk = 2; }
 		if (bot.i == r_i && bot.j == r_j) { brk = 0; }
 		if (lef.i == r_i && lef.j == r_j) { brk = 1; }
 		if (rig.i == r_i && rig.j == r_j) { brk = 3; }
 		// visit node
-		t_map[C->i][C->j] = layer + 1;
+		t_map[C.i][C.j] = layer + 1;
 		layer++;
+		//printf(" %p %d %d\n", Q, brk, layer);
 	}
+	printf("done BFS -- visited %d nodes -- brk = %d\n", layer, brk);
 	while (Q != NULL) { dequeue(&Q); }
 	// done
 	return brk;
@@ -370,7 +376,7 @@ int main(int argc, char *argv[]) {
 		// -1=empty, 0=unknown, 1=occupied
 		for (int i = 0; i < map->height; i++) {
 			for (int j = 0; j < map->width; j++) {
-				if (og_map[i][j] >= 0) {
+				if (og_map[i][j] > 0) {
 					og_map[i][j] = -1;
 				} else {
 					og_map[i][j] = 0;
