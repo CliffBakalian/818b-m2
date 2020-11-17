@@ -166,9 +166,9 @@ void AvoidObstacles(double *forwardSpeed, double *turnSpeed, \
 	  double *sp = sproxy->ranges; // pointer to range array
 
       //will avoid obstacles closer than 40cm
-      double avoidDistance = 0.4;
+      double avoidDistance = 0.2;
       //will turn away at 60 degrees/sec
-      int avoidTurnSpeed = 60;
+      int avoidTurnSpeed = 30;
 	
       //left corner is sonar no. 2
       //right corner is sonar no. 3
@@ -283,6 +283,9 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
 void our_set_move(int id, double fs, double ts){
 			robots[id].forwardSpeed = fs;
 			robots[id].turnSpeed = ts;
+			if(ts == 5) printf("turning left on %d\n", id);
+			else if(ts == -5) printf("turning right on %d\n", id);
+			else printf("straight on %d\n", id);
 }
 
 void iGotSomeData(playerc_opaque_t *audio, int rec_id){
@@ -301,12 +304,12 @@ void iGotSomeData(playerc_opaque_t *audio, int rec_id){
 	double px = robots[rec_id].p2dProxy->px;
 	double py = robots[rec_id].p2dProxy->py;
 	double pa = robots[rec_id].p2dProxy->pa;
-	double bound = 4.0/3.0;
-	printf("rec: %d, dir: %d\n", rec_id, dir);
+	double bound = 1.0/6.0;
 	while(pa > 2*M_PI)
 		pa = pa - 2*M_PI;
 	while(pa < 0)
 		pa = pa + 2*M_PI;
+	printf("rec: %d, dir: %d yaw: %f\n", rec_id, dir, pa);
 	if (dir == 0){
 		if (pa < M_PI/2 - bound || pa > M_PI/2)
 			our_set_move(rec_id, 0, 5);
@@ -361,6 +364,7 @@ int main(int argc, char *argv[]) {
 			playerc_ranger_get_geom(robots[i].sonarProxy);
 			playerc_ranger_get_geom(robots[i].laserProxy);
 
+			robots[i].sink = -1;
 		}
 		simProxy = playerc_simulation_create(robots[0].robot, 0);
 		if (playerc_simulation_subscribe(simProxy, PLAYER_OPEN_MODE)) return -1;
@@ -396,6 +400,40 @@ int main(int argc, char *argv[]) {
 			for(int i = 0; i < 5; i++){
 				// read from the proxies
 				playerc_client_read(robots[i].robot);
+				if(robots[i].blobProxy->blobs_count == 0){
+					if(robots[i].sink != 1){
+					//wander
+						printf("%d wandering\n",i);
+						Wander(&robots[i].forwardSpeed, &robots[i].turnSpeed);
+					}
+				}
+				else {
+					//move towards the item
+
+					if(robots[i].sink != 1){
+						printf("%d found an item\n", i);
+						//print position and stuff to driver
+							player_opaque_data_t audio_msg;
+							our_audio_t thingy;
+							thingy.px = robots[i].p2dProxy->px;
+							thingy.py = robots[i].p2dProxy->py;
+							thingy.id = i;
+							thingy.sink = 1;
+							audio_msg.data = (uint8_t *)&thingy;
+							audio_msg.data_count=sizeof(our_audio_t);
+							for(int j = 0; j< 5; j++)
+								playerc_opaque_cmd(audio, &audio_msg);
+						}
+					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
+				}
+				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
+				}
+				//avoid obstacles
+				if(robots[i].sink != 1)
+					AvoidObstacles(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].sonarProxy);
+
+				//set motors
+				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
 
 				//read audio from driver
 				if (playerc_client_peek(op, 100) > 0) 
@@ -404,39 +442,6 @@ int main(int argc, char *argv[]) {
 					//hear a signal
 					iGotSomeData(audio,i);
 				}
-				else if(robots[i].blobProxy->blobs_count == 0){
-					//wander
-					printf("%d wandering\n",i);
-					Wander(&robots[i].forwardSpeed, &robots[i].turnSpeed);
-				}
-				else{
-					//move towards the item
-					printf("%d found an item\n", i);
-					//print position and stuff to driver
-						player_opaque_data_t audio_msg;
-						our_audio_t thingy;
-						thingy.px = robots[i].p2dProxy->px;
-						thingy.py = robots[i].p2dProxy->py;
-						thingy.id = i;
-						thingy.sink = 1;
-						audio_msg.data = (uint8_t *)&thingy;
-						audio_msg.data_count=sizeof(our_audio_t);
-						for(int j = 0; j< 5; j++)
-							playerc_opaque_cmd(audio, &audio_msg);
-					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
-				}
-				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
-					if(robots[i].sink)
-						robots[i].sink = 0;
-					else
-						robots[i].sink = 1;
-				}
-				//avoid obstacles
-				AvoidObstacles(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].sonarProxy);
-
-				//set motors
-				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
-
 			}
 
 			sleep(1);

@@ -37,7 +37,7 @@ bigbob
 bigbob
 (
 	name "r2" 
-	pose [ 12 1 0 90] 
+	pose [ -2 1 0 90] 
 	color "yellow"
 )
 
