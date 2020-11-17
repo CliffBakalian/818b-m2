@@ -26,6 +26,7 @@ struct Robot
 	playerc_ranger_t *laserProxy;
 	double forwardSpeed;
 	double turnSpeed;
+	int sink;
 }typedef our_robot_t;
 
 our_robot_t robots[5];
@@ -261,135 +262,79 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
       else
       {
             *forwardSpeed = 0.1;
-            *turnSpeed = 0;      
+            *turnSpeed = 0;
             //printf("straight on\n");
       }
       
       return;
 }
 
-/**
-Fills the item list array with the names and positions of items 
-in the simulation
-@param itemList this is the item list which contains the names 
-and positions of all the items in the simulation.
-@param simProxy the simulation proxy for the Player/Stage simulation.
-*/
-void RefreshItemList(item_t *itemList, playerc_simulation_t *simProxy)
-{
-      int i;
-	
-	//get the poses of the oranges
-	for(i=0;i<4;i++)
-	{
-	      char orangeStr[] = "orange%d";
-	      sprintf(itemList[i].name, orangeStr, i+1);
-	      double dummy;  //dummy variable, don't need yaws.
-	      playerc_simulation_get_pose2d(simProxy,itemList[i].name, \
-	            &(itemList[i].x), &(itemList[i].y), &dummy);
-	}
-	
-	//get the poses of the cartons
-	for(i=4;i<8;i++)
-	{
-	      char cartonStr[] = "carton%d";
-	      sprintf(itemList[i].name, cartonStr, i-3);
-	      double dummy;  //dummy variable, don't need yaws.
-	      playerc_simulation_get_pose2d(simProxy,itemList[i].name, \
-	            &(itemList[i].x), &(itemList[i].y), &dummy);
-	}
-	
-	return;
+//return -1 if not found, 0 if north, 1 if west, 2 if south and 3 if west.
+int whereAudioFrom(int souce_id, int rec_id, double px, double py){
+	return 0;
 }
 
-
-
-
-
-
-/**
-Finds an item in the simulation which is near the robot's teeth. 
-@param itemList this is the item list which contains the names and 
-positions of all the items in the simulation.
-@param listLength The number of items in the simulation
-@param sim the simulation proxy for the Player/Stage simulation.
-@return returns the index of the item in the array which is within 
-the robot's teeth. If no item is found then this will return -1.
-*/
-int FindItem(item_t *itemList, int listLength, playerc_simulation_t *sim, char *robot_name)
-{
-	/*
-		This function works by creating a search area just
-		in front of the robot's teeth. The search circle is a
-		fixed distance in front of the robot, and has a 
-		fixed radius.
-		This function finds objects within this search circle
-		and then deletes the closest one.
-	*/
-	
-	//radius of the search circle
-      double radius = 0.375;
-      
-      //The distance from the centre of the robot to 
-      //the centre of the search circle
-      double distBotToCircle = 0.625;
-      double robotX, robotY, robotYaw;
-      double circleX, circleY;
-      
-      //find the robot...
-	  playerc_simulation_get_pose2d(sim,robot_name, &robotX, &robotY, &robotYaw);
-      
-      /*now we find the centre of the search circle. 
-      this is distBotToCircle metres from the robot's origin 
-      along its yaw*/
-           
-      /*horizontal offset from robot origin*/
-      circleX = distBotToCircle*cos(robotYaw);
-           
-      /*vertical offset from robot origin*/
-      circleY = distBotToCircle*sin(robotYaw);
-           
-      //find actual centre relative to simulation.
-      circleX = robotX + circleX;
-      circleY = robotY + circleY;
-           
-      /* to find which items are within this circle we
-      find their Euclidian distance to the circle centre.
-      Find the closest one and if it's distance is smaller than
-      the circle radius then return its index */
-      
-      double smallestDist = 1000000;
-      int closestItem = 0; 
-      int i;
-      
-      for(i=0; i<listLength; i++)
-      {
-            double x, y, dist; 
-            
-            // get manhattan distance from circle centre to item
-            x = circleX - itemList[i].x;
-            y = circleY - itemList[i].y;
-            
-            //find euclidian distance from circle centre to item
-            dist = (x*x) + (y*y);
-            dist = sqrt(dist);
-                        
-            if(dist < smallestDist)
-            {
-                  smallestDist = dist;
-                  closestItem = i;
-            }
-      }
- 
-      if(smallestDist > (radius + distBotToCircle))
-      {
-      	printf("no objects were close enough, false alarm!\n");
-      	return -1;
-      }   
-        
-      return closestItem;
+void our_set_move(int id, double fs, double ts){
+			robots[id].forwardSpeed = fs;
+			robots[id].turnSpeed = ts;
+	if(ts == -5)
+	printf("%d turning right\n",id);
+	else if(ts == 5)
+	printf("%d turning left\n", id);
+	else
+	printf("%d going stright \n", id);
 }
 
+void iGotSomeData(playerc_opaque_t *audio, int rec_id){
+	printf("recieving singal on %d:\n", rec_id);
+	double x = ((our_audio_t*)audio->data)->px;
+	double y = ((our_audio_t*)audio->data)->py;
+	int source_id  = ((our_audio_t*)audio->data)->id;
+	int sink  = ((our_audio_t*)audio->data)->sink;
+	if(source_id == -1 || source_id == rec_id) return;
+	printf("%f %f %d %d\n", x, y, source_id, sink);
+	//fflush(stdout);
+	audio->data_count=0;
+	int dir = whereAudioFrom(source_id, rec_id, x, y);
+	double px = robots[rec_id].p2dProxy->px;
+	double py = robots[rec_id].p2dProxy->py;
+	double pa = robots[rec_id].p2dProxy->pa;
+	printf("%f on %d\n", pa, rec_id);
+	double bound = 4.0/3.0;
+	while(pa > 2*M_PI)
+		pa = pa - 2*M_PI;
+	while(pa < 0)
+		pa = pa - 2*M_PI;
+	if (dir == 0){
+		if (pa < M_PI/2 - bound || pa > M_PI/2)
+			our_set_move(rec_id, 0, 5);
+		else if (pa > M_PI/2 + bound && pa <= M_PI/2)
+			our_set_move(rec_id, 0, -5);
+		else
+			our_set_move(rec_id, 0.1, 0);
+	}else if (dir == 1){
+		if (pa < 2*M_PI - bound && pa >= M_PI)
+			our_set_move(rec_id, 0, 5);
+		else if (pa > 0 + bound && pa < M_PI)
+			our_set_move(rec_id, 0, -5);
+		else
+			our_set_move(rec_id, 0.1, 0);
+	}else if (dir == 2){
+		if (pa < 3*M_PI/2 - bound && pa >= M_PI/2)
+			our_set_move(rec_id, 0, 5);
+		else if (pa > 3*M_PI/2 + bound || pa < M_PI/2)
+			our_set_move(rec_id, 0, -5);
+		else
+			our_set_move(rec_id, 0.1, 0);
+	}else if (dir == 3){
+		if (pa < M_PI - bound)
+			our_set_move(rec_id, 0, 5);
+		else if (pa > M_PI + bound)
+			our_set_move(rec_id, 0, -5);
+		else
+			our_set_move(rec_id, 0.1, 0);
+	}
+}
 
 int main(int argc, char *argv[]) {
 	  playerc_simulation_t *simProxy;
@@ -437,10 +382,8 @@ int main(int argc, char *argv[]) {
 		}
 
 		op = playerc_client_create(NULL, "localhost", 6670);
-		if (playerc_client_connect(op) != 0){
-			puts( "Failed. Quitting." );
-			return -1;
-		}
+		if (playerc_client_connect(op) != 0) return -1;
+		playerc_client_datamode(op, PLAYER_DATAMODE_PUSH);
 
 		playerc_opaque_t *audio = playerc_opaque_create(op, 0);
 		if (playerc_opaque_subscribe(audio, PLAYER_OPEN_MODE))
@@ -448,10 +391,7 @@ int main(int argc, char *argv[]) {
 
 		item_t itemList[8];
 
-		RefreshItemList(itemList, simProxy);
-
 		srand(time(NULL));
-		int our_c = 5;
 		while(true){
 			for(int i = 0; i < 5; i++){
 				// read from the proxies
@@ -464,20 +404,22 @@ int main(int argc, char *argv[]) {
 				}
 				else{
 					//move towards the item
-					printf("%d moving to item\n", i);
+					printf("%d found an item\n", i);
+					//print position and stuff to driver
+						player_opaque_data_t audio_msg;
+						our_audio_t thingy;
+						thingy.px = robots[i].p2dProxy->px;
+						thingy.py = robots[i].p2dProxy->py;
+						thingy.id = i;
+						thingy.sink = 1;
+						audio_msg.data = (uint8_t *)&thingy;
+						audio_msg.data_count=sizeof(our_audio_t);
+						for(int j = 0; j< 5; j++)
+							playerc_opaque_cmd(audio, &audio_msg);
 					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
 					
 				}
 				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
-					int destroyThis;
-					destroyThis = FindItem(itemList, 8, simProxy,(char *)"bob1");
-					
-					if(destroyThis != -1){
-						//move it out of the simulation
-						printf("%d collecting item\n",i);
-						playerc_simulation_set_pose2d(simProxy,itemList[destroyThis].name, -10, -10, 0);
-						RefreshItemList(itemList, simProxy);
-					}
 				}
 				//avoid obstacles
 				AvoidObstacles(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].sonarProxy);
@@ -485,35 +427,16 @@ int main(int argc, char *argv[]) {
 				//set motors
 				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
 
-				//print position and stuff to driver
-				player_opaque_data_t audio_msg;
-				our_audio_t thingy;
-				thingy.px = robots[i].p2dProxy->px;
-				thingy.py = robots[i].p2dProxy->py;
-				thingy.id = i;
-				thingy.sink = 1;
-				audio_msg.data = (uint8_t *)&thingy;
-				audio_msg.data_count=sizeof(our_audio_t);
-				playerc_opaque_cmd(audio, &audio_msg);
-				printf("sending signal\n");
-				printf("%f %f %d %d\n", thingy.px,thingy.py,
-												thingy.sink,thingy.id);
-				fflush(stdout);
 				//read audio from driver
 				if (playerc_client_peek(op, 100) > 0) 
 					playerc_client_read(op);
 				if (audio->data_count>0) {
-					printf("recieving singal on %d:\n", i);
-					printf("%f %f %d %d\n", ((our_audio_t*)audio->data)->px,((our_audio_t*)audio->data)->py,
-													((our_audio_t*)audio->data)->sink,((our_audio_t*)audio->data)->id);
-					fflush(stdout);
-					audio->data_count=0;
+					//hear a signal
+					iGotSomeData(audio,i);
 				}
 			}
-		
 
 			sleep(1);
-			
 		}
 
 

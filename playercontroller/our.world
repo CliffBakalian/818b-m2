@@ -75,6 +75,3 @@ define source model
 sink(name "sink" pose [-11 4.5 0 0])
 source(name "source" pose [16.5 -3 0 0])
 
-
-
-

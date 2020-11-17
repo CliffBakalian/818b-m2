@@ -31,7 +31,7 @@ define bigbobs_sonars ranger
 define bigbobs_eyes blobfinder
 (
 	colors_count 2
-	colors ["orange" "DarkBlue"]
+	colors ["red" "blue"]
 	image [160 120] # resolution
 	range 5.00 		 # meters
 	fov 60 # fov (in unit_angle (degrees by def))
