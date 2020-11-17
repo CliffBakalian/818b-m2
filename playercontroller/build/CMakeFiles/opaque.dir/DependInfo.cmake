@@ -4,13 +4,14 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/usr/local/share/player/examples/plugins/opaquedriver/opaque.c" "/home/cyb/818/818b-m2/playercontroller/build/CMakeFiles/opaque.dir/opaque.o"
+  "/usr/local/share/player/examples/plugins/opaquedriver/opaque.c" "/home/justin/818b-m2/playercontroller/build/CMakeFiles/opaque.dir/opaque.o"
   )
 set(CMAKE_C_COMPILER_ID "GNU")
 
 # The include file search paths:
 set(CMAKE_C_TARGET_INCLUDE_PATH
   "/usr/local/include/player-3.1"
+  "/usr/include/tirpc"
   )
 
 # Targets to which this target links.

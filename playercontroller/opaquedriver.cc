@@ -45,7 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <libplayercore/playercore.h>
 
-#include "sharedstruct.h"
+#include "audioshared.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // The class for the driver
@@ -152,10 +152,18 @@ int OpaqueDriver::ProcessMessage(QueuePointer & resp_queue,
   // return -1, and a NACK will be sent for you, if a response is required.
 	our_audio_t *temp = (our_audio_t *)((player_opaque_data_t *)data)->data;
 	audioStruct.id = temp->id;
-	audioStruct.sink = temp->sink;	
-	audioStruct.px = temp->px; 
+	audioStruct.sink = temp->sink;
+	audioStruct.px = temp->px;
 	audioStruct.py = temp->py;
-  return(0);
+	for (int i = 0; i < 5; i++) {
+		uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
+		Publish(
+			device_addr,
+          		PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
+          		reinterpret_cast<void*>(&mData), size, NULL
+		);
+	}
+	return(0);
 }
 
 
@@ -180,10 +188,10 @@ void OpaqueDriver::Main()
 void OpaqueDriver::RefreshData()
 {
 	//puts("about to send");
-	uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
-		Publish(device_addr, 
+/*	uint32_t size = sizeof(mData) - sizeof(mData.data) + mData.data_count;
+		Publish(device_addr,
           PLAYER_MSGTYPE_DATA, PLAYER_OPAQUE_DATA_STATE,
-          reinterpret_cast<void*>(&mData), size, NULL);
+          reinterpret_cast<void*>(&mData), size, NULL);*/
 	//puts("full send");
 }
 ////////////////////////////////////////////////////////////////////////////////

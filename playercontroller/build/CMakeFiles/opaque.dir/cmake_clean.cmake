@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/opaque.dir/opaque.o"
-  "opaque.pdb"
   "opaque"
+  "opaque.pdb"
 )
 
 # Per-language clean rules from dependency scanning.

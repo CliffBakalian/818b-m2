@@ -1,1 +1,1 @@
-/usr/bin/c++ -fPIC   -shared -Wl,-soname,libopaquedriver.so -o libopaquedriver.so CMakeFiles/opaquedriver.dir/opaquedriver.o  -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lplayercore -lpthread -lltdl -ldl -lplayerinterface -lplayercommon 
+/usr/bin/c++ -fPIC   -shared -Wl,-soname,libopaquedriver.so -o libopaquedriver.so CMakeFiles/opaquedriver.dir/opaquedriver.o   -L/usr/local/lib  -Wl,-rpath,/usr/local/lib -lplayercore -lpthread -lltdl -ldl -lplayerinterface -ltirpc -lplayercommon 

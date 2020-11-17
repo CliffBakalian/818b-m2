@@ -6,6 +6,30 @@
 
 #IncludeRegexTransform: 
 
+/usr/include/tirpc/netconfig.h
+features.h
+-
+
+/usr/include/tirpc/rpc/types.h
+sys/types.h
+-
+sys/time.h
+-
+sys/param.h
+-
+stdlib.h
+-
+netconfig.h
+-
+
+/usr/include/tirpc/rpc/xdr.h
+stdio.h
+-
+netinet/in.h
+-
+rpc/types.h
+-
+
 /usr/local/include/player-3.1/libplayercommon/error.h
 stdio.h
 -
@@ -186,6 +210,10 @@ sys/types.h
 rpc/types.h
 -
 
+/usr/local/share/player/examples/plugins/opaquedriver/audioshared.h
+playerconfig.h
+-
+
 /usr/local/share/player/examples/plugins/opaquedriver/opaquedriver.cc
 config.h
 -
@@ -197,10 +225,6 @@ math.h
 -
 libplayercore/playercore.h
 -
-sharedstruct.h
-/usr/local/share/player/examples/plugins/opaquedriver/sharedstruct.h
-
-/usr/local/share/player/examples/plugins/opaquedriver/sharedstruct.h
-playerconfig.h
--
+audioshared.h
+/usr/local/share/player/examples/plugins/opaquedriver/audioshared.h
 

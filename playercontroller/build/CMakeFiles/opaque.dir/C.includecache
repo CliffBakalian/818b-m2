@@ -6,6 +6,30 @@
 
 #IncludeRegexTransform: 
 
+/usr/include/tirpc/netconfig.h
+features.h
+-
+
+/usr/include/tirpc/rpc/types.h
+sys/types.h
+-
+sys/time.h
+-
+sys/param.h
+-
+stdlib.h
+-
+netconfig.h
+-
+
+/usr/include/tirpc/rpc/xdr.h
+stdio.h
+-
+netinet/in.h
+-
+rpc/types.h
+-
+
 /usr/local/include/player-3.1/libplayerc/playerc.h
 netinet/in.h
 -
