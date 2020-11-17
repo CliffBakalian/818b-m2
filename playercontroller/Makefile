@@ -8,3 +8,6 @@ LDLIBS = `pkg-config --libs playerc++`
 CC = g++
 
 all: our
+
+our: our.c
+	gcc -o our `pkg-config --cflags playerc` our.c `pkg-config --libs playerc`

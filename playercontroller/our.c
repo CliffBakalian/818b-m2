@@ -1,6 +1,3 @@
-// Desc: Bigbob2 - multiple robots
-// Author:  Kevin Nickels 1 July 2015
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -10,12 +7,6 @@
 #include <libplayerc/playerc.h>
 #include "audioshared.h"
 
-struct Item
-{
-	char name[16];
-	double x;
-	double y;
-}typedef item_t;
 
 struct Robot
 {
@@ -36,17 +27,21 @@ int og_map[443][1086];
 
 // simple Queue
 // https://stackoverflow.com/a/43687183
-struct node {
+typedef struct node {
 	int i;
 	int j;
 	struct node *next;
-} typedef node_t;
+} node_t;
 void enqueue(node_t **head, int i, int j) {
-	node_t *new_node = (node_t *) malloc(sizeof(node_t));
+	printf("about to malloc\n");
+	node_t *new_node = malloc(sizeof(node_t));
 	if (!new_node) return;
+	printf("  no memory issue\n");
 	new_node->i = i;
 	new_node->j = j;
+	new_node->next = *head;
 	*head = new_node;
+	printf("  allocated new node\n");
 }
 node_t* dequeue(node_t **head) {
 	node_t *curr, *prev = NULL;
@@ -68,24 +63,31 @@ node_t* dequeue(node_t **head) {
 	return retval;
 }
 int globalToCell(double g_max_m, double g_curr_m, int pixels) {
-	return (int) floor(g_curr_m / g_max_m * pixels);
+	printf(" gtc: %f %f %d\n", g_curr_m, g_max_m, pixels);
+	return (int) floor((g_curr_m + g_max_m/2) / g_max_m * pixels);
 }
 //return -1 if not found, 0 if north, 1 if east, 2 if south and 3 if west.
 int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 	if (src_id == rcv_id) { return -1; }
-
+	printf(" src %d\n", src_id);
+	printf("  %d %f %f should equal %f %f\n", src_id, s_px, s_py, robots[src_id].p2dProxy->px, robots[src_id].p2dProxy->py);
 	int r_i = globalToCell(14.0, robots[rcv_id].p2dProxy->py, map->height);
 	int r_j = globalToCell(34.0, robots[rcv_id].p2dProxy->px, map->width);
-
+	printf("%d %d\n", r_i, r_j);
 	// generate a 2d array, perform BFS to find shortest path
 	// from src_id -> rcv_id
 	int t_map[map->height][map->width];
 	memcpy(t_map, og_map, sizeof(int) * 443 * 1086);
 	node_t *Q = NULL;
-	enqueue(&Q, globalToCell(14.0, s_py, map->height), globalToCell(34.0, s_px, map->width));
+	int s_i = globalToCell(14.0, s_py, map->height);
+	int s_j = globalToCell(34.0, s_px, map->width);
+	printf("%d %d\n", s_i, s_j);
+	enqueue(&Q, s_i, s_j);
 	// do BFS
 	int layer = 0;
-	while (Q != NULL) {
+	int brk = -1;
+	while (Q != NULL && brk == -1) {
+		printf("BFS iter %d\n", layer);
 		// dequeue Q
 		node_t *C = dequeue(&Q);
 		// calculate neighbors
@@ -94,21 +96,24 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 		node_t lef = {C->i, C->j-1, NULL};
 		node_t rig = {C->i, C->j+1, NULL};
 		// enqueue nodes
+		printf(" %d %d \n", top.i, top.j);
 		if (top.i > -1 && t_map[top.i][top.j] == 0) { enqueue(&Q, top.i, top.j); }
 		if (bot.i < map->height && t_map[bot.i][bot.j] == 0) { enqueue(&Q, bot.i, bot.j); }
 		if (lef.j > -1 && t_map[lef.i][lef.j] == 0) { enqueue(&Q, lef.i, lef.j); }
 		if (rig.j < map->width && t_map[rig.i][rig.j] == 0) { enqueue(&Q, rig.i, rig.j); }
+		printf(" enqueue-d 4 nodes\n");
 		// check for robot
-		if (top.i == r_i && top.j == r_j) { return 2; }
-		if (bot.i == r_i && bot.j == r_j) { return 0; }
-		if (lef.i == r_i && lef.j == r_j) { return 1; }
-		if (rig.i == r_i && rig.j == r_j) { return 3; }
+		if (top.i == r_i && top.j == r_j) { brk = 2; }
+		if (bot.i == r_i && bot.j == r_j) { brk = 0; }
+		if (lef.i == r_i && lef.j == r_j) { brk = 1; }
+		if (rig.i == r_i && rig.j == r_j) { brk = 3; }
 		// visit node
 		t_map[C->i][C->j] = layer + 1;
 		layer++;
 	}
+	while (Q != NULL) { dequeue(&Q); }
 	// done
-	return -1;
+	return brk;
 }
 
 
@@ -213,16 +218,15 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
       /*number of pixels away from the image centre a blob
       can be to be in front of the robot*/
       int margin = 10;
-      
+
       int biggestBlobArea = 0;
       int biggestBlob = 0;
-      
+
       //find the largest blob
       for(i=0; i<noBlobs; i++)
       {
             //get blob from proxy
             playerc_blobfinder_blob_t currBlob = bfp->blobs[i];
-            
             // (.area is a negative cast into an unsigned int! oops.)
             if( abs((int)currBlob.area) > biggestBlobArea)
             {
@@ -384,8 +388,6 @@ int main(int argc, char *argv[]) {
 		if (playerc_opaque_subscribe(audio, PLAYER_OPEN_MODE))
 			return -1;
 
-		item_t itemList[8];
-
 		srand(time(NULL));
 		while(true){
 			for(int i = 0; i < 5; i++){
@@ -412,7 +414,6 @@ int main(int argc, char *argv[]) {
 						for(int j = 0; j< 5; j++)
 							playerc_opaque_cmd(audio, &audio_msg);
 					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
-					
 				}
 				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
 				}
