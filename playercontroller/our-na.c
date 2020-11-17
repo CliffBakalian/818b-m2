@@ -525,7 +525,7 @@ main (int argc, char *argv[]) {
 	for (int i = 0; i < 5; i++) {
 	    // read from the proxies
 	    playerc_client_read (robots[i].robot);
-
+/*
 	    //read audio from driver
 	    if (playerc_client_peek (op, 100) > 0)
 		playerc_client_read (op);
@@ -533,7 +533,7 @@ main (int argc, char *argv[]) {
 		//hear a signal
 		iGotSomeData (audio, i);
 	    }else robots[i].sink = -1;
-
+*/
 	    if (robots[i].blobProxy->blobs_count == 0) {
 		if (robots[i].sink != 1) {
 		    //wander
@@ -544,7 +544,7 @@ main (int argc, char *argv[]) {
                 // i see nothing -- don't send audio signal
 	    } else {
 		//move towards the item
-
+/*
 		if (robots[i].sink != 1) {
 		    printf ("%d found an item\n", i);
 		    //print position and stuff to driver
@@ -559,6 +559,7 @@ main (int argc, char *argv[]) {
 		    //for (int j = 0; j < 5; j++)
 			playerc_opaque_cmd (audio, &audio_msg);
 		}
+*/
 		MoveToItem (&robots[i].forwardSpeed, &robots[i].turnSpeed,
 			    robots[i].blobProxy);
 	    }
