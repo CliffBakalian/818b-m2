@@ -25,73 +25,56 @@ floorplan
 bigbob
 (
 	name "r0" 
-	pose [-5 -6 0 45] 
+	pose [-7 2.5 0 90] 
 	color "yellow"
 )
 bigbob
 (
 	name "r1" 
-	pose [ -2 2 0 225] 
+	pose [ -0.5 0 0 90] 
 	color "yellow"
 )
 bigbob
 (
 	name "r2" 
-	pose [ 3 -4 0 225] 
+	pose [ 12 1 0 90] 
 	color "yellow"
 )
 
 bigbob
 (
 	name "r3" 
-	pose [ 6 2 0 225] 
+	pose [ 2 -4.5 0 90] 
 	color "yellow"
 )
 
 bigbob
 (
 	name "r4" 
-	pose [ -2 -2 0 225] 
+	pose [ 2 0 0 90] 
 	color "yellow"
 )
 
-define orange model
+define sink model
 (
 	# this is a picture of a black circle
 	bitmap "circle.png"
-	size [0.005 0.005 0.15]
-	color "orange"
+	size [0.5 0.5 0.15]
+	color "blue"
 )
 
-define carton model
+define source model
 (
-	# a carton is retangular
-	# so make a square shape and use size[]
-	block
-	(
-		points 4
-		point[0] [1 0]
-		point[1] [1 1]
-		point[2] [0 1]
-		point[3] [0 0]
-		z [0 1]
-	)
-	
-	# average litre carton size is ~ 20cm x 10cm x 5cm
-	size [0.05 0.10 0.2]
-	
-	color "DarkBlue"
+	# this is a picture of a black circle
+	bitmap "circle.png"
+	size [0.5 0.5 0.15]
+	color "red"
 )
 
-orange(name "orange1" pose [-1 -5 0 0])
-orange(name "orange2" pose [-2 -5 0 0])
-orange(name "orange3" pose [-3 -5 0 0])
-orange(name "orange4" pose [-4 -5 0 0])
 
-carton(name "carton1" pose [-2 -4 0 0])
-carton(name "carton2" pose [-2 -3 0 0])
-carton(name "carton3" pose [-2 -2 0 0])
-carton(name "carton4" pose [-2 -1 0 0])
+sink(name "sink" pose [-11 4.5 0 0])
+source(name "source" pose [16.5 -3 0 0])
+
 
 
 
