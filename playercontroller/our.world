@@ -18,7 +18,8 @@ window
 floorplan
 (
 	bitmap "hospital_section.png" 
-	size [15 15 1.5]
+  map_resolution 0.02
+  size [34 14 2]
 )
 
 bigbob
@@ -39,7 +40,7 @@ define orange model
 (
 	# this is a picture of a black circle
 	bitmap "circle.png"
-	size [0.05 0.05 0.15]
+	size [0.005 0.005 0.15]
 	color "orange"
 )
 

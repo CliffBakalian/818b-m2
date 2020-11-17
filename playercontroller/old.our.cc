@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <libplayerc++/playerc++.h>
+#include "sharedstruct.h"
 //#include <values.h>
 
 struct Item
@@ -310,6 +311,12 @@ int main(int argc, char *argv[])
       /*need to do this line in c++ only*/
       using namespace PlayerCc;
 	
+			PlayerClient		mapthing("localhost", 6667);
+			MapProxy				mapthingprox(&mapthing,0);
+
+			//int8_t map[mapthingprox.GetHeight()][mapthingprox.GetWidth()];
+			int8_t map[443][1086];
+			
       PlayerClient    robot("localhost", 6665);
       Position2dProxy p2dProxy(&robot,0);
       RangerProxy      sonarProxy(&robot,0);
@@ -317,12 +324,19 @@ int main(int argc, char *argv[])
       RangerProxy      laserProxy(&robot,1);
       SimulationProxy simProxy(&robot,0);
 
+			PlayerClient		op("localhost", 6668);
+			OpaqueProxy			oprox(&op,0);
+			
       PlayerClient    robot2("localhost", 6666);
       Position2dProxy p2dProxy2(&robot2,0);
       RangerProxy      sonarProxy2(&robot2,0);
       BlobfinderProxy blobProxy2(&robot2,0);
       RangerProxy      laserProxy2(&robot2,1);
-      
+
+/*
+			PlayerClient		op2("localhost", 6669);
+			OpaqueProxy			oprox2(&op2,0);
+ */     
       double forwardSpeed, turnSpeed;
       double forwardSpeed2, turnSpeed2;
       item_t itemList[8];
@@ -348,11 +362,15 @@ int main(int argc, char *argv[])
       laserProxy2.RequestGeom();
       laserProxy2.RequestConfigure();
       //blobfinder2 doesn't have geometry
-	
+			mapthingprox.RequestMap();
+			//mapthingprox.GetMap(map);
+			//for(int i = 0; i < mapthingprox.GetHeight(); i++)
+			//	for(int j = 0; j < mapthingprox.GetWidth(); j++)
+			//		printf("%d ",mapthingprox.GetCell(i,j));
       while(true)
       {		
             // read from the proxies
-            robot.Read();
+        robot.Read();
 		
             if(blobProxy.GetCount() == 0)
             {
@@ -380,8 +398,41 @@ int main(int argc, char *argv[])
 		            printf("1 collecting item\n");
 		            simProxy.SetPose2d(itemList[destroyThis].name, -10, -10, 0);
 		            RefreshItemList(itemList, simProxy);
-		      }
+								}
+						}	
+						
+						int size = oprox.GetCount();
+						if(size> 0){
+							uint8_t d[size];
+							oprox.GetData(d);
+							printf("%s\n", d);
             }
+						player_opaque_data_t audio_msg;
+						test_t *thingy;
+						thingy->uint8 = 1;
+						thingy->int8 = 1;
+						thingy->uint16=1;
+						thingy->int16=1;
+						thingy->uint32=1;
+						thingy->int32=1;
+						thingy->doub=1.0;
+						audio_msg.data = (uint8_t*)thingy;
+						audio_msg.data_count=sizeof(test_t);
+						printf("Im about to full send\n");
+						fflush(stdout);
+						oprox.SendCmd(&audio_msg);
+						printf("I sent some cum\n");
+						fflush(stdout);
+/*
+						else if(std::rand() % 4 == 0){
+							player_opaque_data_t audio_msg;
+							char* temp_str="hello";
+							std::sprintf((char* ) audio_msg.data, "%s", temp_str);
+							audio_msg.data_count=5;
+				
+							oprox2.SendCmd(&audio_msg);
+						}
+*/
             //avoid obstacles
             AvoidObstacles(&forwardSpeed, &turnSpeed, sonarProxy);
 		
@@ -420,6 +471,22 @@ int main(int argc, char *argv[])
 		            RefreshItemList(itemList, simProxy);
 		      }
             }
+/*
+						size = oprox2.GetCount();
+						if(size> 0){
+							uint8_t d[size];
+							oprox2.GetData(d);
+							printf("%s\n", d);
+            }
+						else if(std::rand() % 4 == 0){
+							player_opaque_data_t audio_msg;
+							char* temp_str="World";
+							std::sprintf((char* ) audio_msg.data, "%s", temp_str);
+							audio_msg.data_count=5;
+				
+							oprox.SendCmd(&audio_msg);
+						}
+*/
             //avoid obstacles
             AvoidObstacles(&forwardSpeed2, &turnSpeed2, sonarProxy2);
 		

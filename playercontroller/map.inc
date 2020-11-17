@@ -5,7 +5,7 @@
 define floorplan model
 (
   # sombre, sensible, artistic
-  color "gray30"
+  color "black"
 
   # most maps will need a bounding box
   boundary 1

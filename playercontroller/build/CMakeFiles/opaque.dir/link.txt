@@ -1,0 +1,1 @@
+/usr/bin/cc   -rdynamic CMakeFiles/opaque.dir/opaque.o  -o opaque  -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lplayerc -lm -lz -lplayerinterface -lplayerwkb -lplayercommon 
