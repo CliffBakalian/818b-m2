@@ -29,6 +29,88 @@ struct Robot
 }typedef our_robot_t;
 
 our_robot_t robots[5];
+
+playerc_map_t *map;
+int og_map[443][1086];
+
+// simple Queue
+// https://stackoverflow.com/a/43687183
+struct node {
+	int i;
+	int j;
+	struct node *next;
+} typedef node_t;
+void enqueue(node_t **head, int i, int j) {
+	node_t *new_node = (node_t *) malloc(sizeof(node_t));
+	if (!new_node) return;
+	new_node->i = i;
+	new_node->j = j;
+	*head = new_node;
+}
+node_t* dequeue(node_t **head) {
+	node_t *curr, *prev = NULL;
+	node_t *retval;
+	if (*head == NULL) return NULL;
+	curr = *head;
+	while (curr->next != NULL) {
+		prev = curr;
+		curr = curr->next;
+	}
+	retval->i = curr->i;
+	retval->j = curr->j;
+	free(curr);
+	if (prev) {
+		prev->next = NULL;
+	} else {
+		*head = NULL;
+	}
+	return retval;
+}
+int globalToCell(double g_max_m, double g_curr_m, int pixels) {
+	return (int) floor(g_curr_m / g_max_m * pixels);
+}
+//return -1 if not found, 0 if north, 1 if east, 2 if south and 3 if west.
+int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
+	if (src_id == rcv_id) { return -1; }
+
+	int r_i = globalToCell(14.0, robots[rcv_id].p2dProxy->py, map->height);
+	int r_j = globalToCell(34.0, robots[rcv_id].p2dProxy->px, map->width);
+
+	// generate a 2d array, perform BFS to find shortest path
+	// from src_id -> rcv_id
+	int t_map[map->height][map->width];
+	memcpy(t_map, og_map, sizeof(int) * 443 * 1086);
+	node_t *Q = NULL;
+	enqueue(&Q, globalToCell(14.0, s_py, map->height), globalToCell(34.0, s_px, map->width));
+	// do BFS
+	int layer = 0;
+	while (Q != NULL) {
+		// dequeue Q
+		node_t *C = dequeue(&Q);
+		// calculate neighbors
+		node_t top = {C->i-1, C->j, NULL};
+		node_t bot = {C->i+1, C->j, NULL};
+		node_t lef = {C->i, C->j-1, NULL};
+		node_t rig = {C->i, C->j+1, NULL};
+		// enqueue nodes
+		if (top.i > -1 && t_map[top.i][top.j] == 0) { enqueue(&Q, top.i, top.j); }
+		if (bot.i < map->height && t_map[bot.i][bot.j] == 0) { enqueue(&Q, bot.i, bot.j); }
+		if (lef.j > -1 && t_map[lef.i][lef.j] == 0) { enqueue(&Q, lef.i, lef.j); }
+		if (rig.j < map->width && t_map[rig.i][rig.j] == 0) { enqueue(&Q, rig.i, rig.j); }
+		// check for robot
+		if (top.i == r_i && top.j == r_j) { return 2; }
+		if (bot.i == r_i && bot.j == r_j) { return 0; }
+		if (lef.i == r_i && lef.j == r_j) { return 1; }
+		if (rig.i == r_i && rig.j == r_j) { return 3; }
+		// visit node
+		t_map[C->i][C->j] = layer + 1;
+		layer++;
+	}
+	// done
+	return -1;
+}
+
+
 /**
 Randomly assigns new speeds into the given addresses. 
 This function will always write to the given addresses.
@@ -42,18 +124,18 @@ void Wander(double *forwardSpeed, double *turnSpeed)
       int maxSpeed = 1;
       int maxTurn = 90;
       double fspeed, tspeed;
-	
+
       //fspeed is between 0 and 10
       fspeed = rand()%11;
       //(fspeed/10) is between 0 and 1
       fspeed = (fspeed/10)*maxSpeed;
-	
+
       tspeed = rand()%(2*maxTurn);
       tspeed = tspeed-maxTurn;
-	
+
       *forwardSpeed = fspeed;
       *turnSpeed = tspeed;
-} 
+}
 
 /**
 Checks sonars for obstacles and updates the given addresses 
@@ -74,7 +156,7 @@ void AvoidObstacles(double *forwardSpeed, double *turnSpeed, \
       double avoidDistance = 0.4;
       //will turn away at 60 degrees/sec
       int avoidTurnSpeed = 60;
-      
+	
       //left corner is sonar no. 2
       //right corner is sonar no. 3
       if(sp[2] < avoidDistance)
@@ -307,16 +389,12 @@ int FindItem(item_t *itemList, int listLength, playerc_simulation_t *sim, char *
         
       return closestItem;
 }
-//return -1 if not found, 0 if north, 1 if west, 2 if south and 3 if west.
-int whereAudioFrom(int souce_id, int rec_id, double px, double py){
 
-}
 
-int main(int argc, char *argv[])
-{	
+int main(int argc, char *argv[]) {
 	  playerc_simulation_t *simProxy;
 
-		playerc_client_t *op;		
+		playerc_client_t *op;
 
 		for(int i = 0; i< 5; i++){
 			robots[i].robot = playerc_client_create(NULL, "localhost", 6665+i);
@@ -335,10 +413,28 @@ int main(int argc, char *argv[])
 			playerc_position2d_get_geom(robots[i].p2dProxy);
 			playerc_ranger_get_geom(robots[i].sonarProxy);
 			playerc_ranger_get_geom(robots[i].laserProxy);
-	
+
 		}
 		simProxy = playerc_simulation_create(robots[0].robot, 0);
 		if (playerc_simulation_subscribe(simProxy, PLAYER_OPEN_MODE)) return -1;
+		map = playerc_map_create(robots[0].robot, 0);
+		if (playerc_map_subscribe(map, PLAYER_OPEN_MODE)) return -1;
+		playerc_map_get_map(map);
+		// calculate original map (10cm / pixel)
+		printf("map info: %d %d %f\n", map->width, map->height, map->resolution); // map->resolution = m/cell
+		memcpy(og_map, map->cells, sizeof(char) * map->width * map->height);
+		// -1=empty, 0=unknown, 1=occupied
+		for (int i = 0; i < map->height; i++) {
+			for (int j = 0; j < map->width; j++) {
+				if (og_map[i][j] >= 0) {
+					og_map[i][j] = -1;
+				} else {
+					og_map[i][j] = 0;
+				}
+				// printf("%d ", og_map[i][j]);
+			}
+			// printf("\n");
+		}
 
 		op = playerc_client_create(NULL, "localhost", 6670);
 		if (playerc_client_connect(op) != 0){
@@ -356,11 +452,11 @@ int main(int argc, char *argv[])
 
 		srand(time(NULL));
 		int our_c = 5;
-		while(true){		
+		while(true){
 			for(int i = 0; i < 5; i++){
 				// read from the proxies
 				playerc_client_read(robots[i].robot);
-	
+
 				if(robots[i].blobProxy->blobs_count == 0){
 					//wander
 					printf("%d wandering\n",i);
