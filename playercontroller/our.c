@@ -269,11 +269,6 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
       return;
 }
 
-//return -1 if not found, 0 if north, 1 if west, 2 if south and 3 if west.
-int whereAudioFrom(int souce_id, int rec_id, double px, double py){
-	return 0;
-}
-
 void our_set_move(int id, double fs, double ts){
 			robots[id].forwardSpeed = fs;
 			robots[id].turnSpeed = ts;
