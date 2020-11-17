@@ -76,7 +76,6 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 	//printf("  %d %f %f should equal %f %f\n", src_id, s_px, s_py, robots[src_id].p2dProxy->px, robots[src_id].p2dProxy->py);
 	int r_i = globalToCell(14.0, robots[rcv_id].p2dProxy->py, map->height);
 	int r_j = globalToCell(34.0, robots[rcv_id].p2dProxy->px, map->width);
-	printf("%d %d\n", r_i, r_j);
 	// generate a 2d array, perform BFS to find shortest path
 	// from src_id -> rcv_id
 	int t_map[map->height][map->width];
@@ -84,7 +83,8 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 	node_t *Q = NULL;
 	int s_i = globalToCell(14.0, s_py, map->height);
 	int s_j = globalToCell(34.0, s_px, map->width);
-	printf("%d %d\n", s_i, s_j);
+	printf("    src  map cell: %d %d\n", s_i, s_j);
+	printf("    goal map cell: %d %d\n", r_i, r_j);
 	enqueue(&Q, s_i, s_j);
 	// do BFS
 	int layer = 0;
@@ -93,6 +93,10 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 		//printf("BFS iter %d\n", layer);
 		// dequeue Q
 		node_t C = dequeue(&Q);
+		// visit node
+		if (t_map[C.i][C.j] > 0) continue;
+		t_map[C.i][C.j] = layer + 1;
+		layer++;
 		//printf(" %d %d\n", C.i, C.j);
 		// calculate neighbors
 		node_t top = {C.i-1, C.j, NULL};
@@ -111,12 +115,9 @@ int whereAudioFrom(int src_id, int rcv_id, double s_px, double s_py) {
 		if (bot.i == r_i && bot.j == r_j) { brk = 0; }
 		if (lef.i == r_i && lef.j == r_j) { brk = 1; }
 		if (rig.i == r_i && rig.j == r_j) { brk = 3; }
-		// visit node
-		t_map[C.i][C.j] = layer + 1;
-		layer++;
 		//printf(" %p %d %d\n", Q, brk, layer);
 	}
-	printf("done BFS -- visited %d nodes -- brk = %d\n", layer, brk);
+	printf("    done -- visited %d nodes -- brk = %d\n", layer, brk);
 	while (Q != NULL) { dequeue(&Q); }
 	// done
 	return brk;
