@@ -291,16 +291,18 @@ void iGotSomeData(playerc_opaque_t *audio, int rec_id){
 	double y = ((our_audio_t*)audio->data)->py;
 	int source_id  = ((our_audio_t*)audio->data)->id;
 	int sink  = ((our_audio_t*)audio->data)->sink;
-	if(source_id == -1 || source_id == rec_id || sink != robots[rec_id].sink) return;
+	printf("%f %f %d %d\n", x, y, source_id, sink);
+	if(source_id == -1 || source_id == rec_id) return;
 	if(robots[rec_id].sink == -1)
 		robots[rec_id].sink = sink;
-	else if (sink != robots[rec_id].sink) return;
+//	else if (sink != robots[rec_id].sink) return;
 	audio->data_count=0;
 	int dir = whereAudioFrom(source_id, rec_id, x, y);
 	double px = robots[rec_id].p2dProxy->px;
 	double py = robots[rec_id].p2dProxy->py;
 	double pa = robots[rec_id].p2dProxy->pa;
 	double bound = 4.0/3.0;
+	printf("rec: %d, dir: %d\n", rec_id, dir);
 	while(pa > 2*M_PI)
 		pa = pa - 2*M_PI;
 	while(pa < 0)
@@ -395,7 +397,14 @@ int main(int argc, char *argv[]) {
 				// read from the proxies
 				playerc_client_read(robots[i].robot);
 
-				if(robots[i].blobProxy->blobs_count == 0){
+				//read audio from driver
+				if (playerc_client_peek(op, 100) > 0) 
+					playerc_client_read(op);
+				if (audio->data_count>0) {
+					//hear a signal
+					iGotSomeData(audio,i);
+				}
+				else if(robots[i].blobProxy->blobs_count == 0){
 					//wander
 					printf("%d wandering\n",i);
 					Wander(&robots[i].forwardSpeed, &robots[i].turnSpeed);
@@ -428,13 +437,6 @@ int main(int argc, char *argv[]) {
 				//set motors
 				playerc_position2d_set_cmd_vel(robots[i].p2dProxy, robots[i].forwardSpeed, 0.0, DTOR(robots[i].turnSpeed), 1);
 
-				//read audio from driver
-				if (playerc_client_peek(op, 100) > 0) 
-					playerc_client_read(op);
-				if (audio->data_count>0) {
-					//hear a signal
-					iGotSomeData(audio,i);
-				}
 			}
 
 			sleep(1);
