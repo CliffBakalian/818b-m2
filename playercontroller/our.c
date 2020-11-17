@@ -282,34 +282,28 @@ void MoveToItem(double *forwardSpeed, double *turnSpeed,
 void our_set_move(int id, double fs, double ts){
 			robots[id].forwardSpeed = fs;
 			robots[id].turnSpeed = ts;
-	if(ts == -5)
-	printf("%d turning right\n",id);
-	else if(ts == 5)
-	printf("%d turning left\n", id);
-	else
-	printf("%d going stright \n", id);
 }
 
 void iGotSomeData(playerc_opaque_t *audio, int rec_id){
-	printf("recieving singal on %d:\n", rec_id);
+	printf("recieving signal on %d:\n", rec_id);
 	double x = ((our_audio_t*)audio->data)->px;
 	double y = ((our_audio_t*)audio->data)->py;
 	int source_id  = ((our_audio_t*)audio->data)->id;
 	int sink  = ((our_audio_t*)audio->data)->sink;
-	if(source_id == -1 || source_id == rec_id) return;
-	printf("%f %f %d %d\n", x, y, source_id, sink);
-	//fflush(stdout);
+	if(source_id == -1 || source_id == rec_id || sink != robots[rec_id].sink) return;
+	if(robots[rec_id].sink == -1)
+		robots[rec_id].sink = sink;
+	else if (sink != robots[rec_id].sink) return;
 	audio->data_count=0;
 	int dir = whereAudioFrom(source_id, rec_id, x, y);
 	double px = robots[rec_id].p2dProxy->px;
 	double py = robots[rec_id].p2dProxy->py;
 	double pa = robots[rec_id].p2dProxy->pa;
-	printf("%f on %d\n", pa, rec_id);
 	double bound = 4.0/3.0;
 	while(pa > 2*M_PI)
 		pa = pa - 2*M_PI;
 	while(pa < 0)
-		pa = pa - 2*M_PI;
+		pa = pa + 2*M_PI;
 	if (dir == 0){
 		if (pa < M_PI/2 - bound || pa > M_PI/2)
 			our_set_move(rec_id, 0, 5);
@@ -422,6 +416,10 @@ int main(int argc, char *argv[]) {
 					MoveToItem(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].blobProxy);
 				}
 				if(robots[i].laserProxy->ranges_count >= 89 && robots[i].laserProxy->ranges[89] < 0.25){
+					if(robots[i].sink)
+						robots[i].sink = 0;
+					else
+						robots[i].sink = 1;
 				}
 				//avoid obstacles
 				AvoidObstacles(&robots[i].forwardSpeed, &robots[i].turnSpeed, robots[i].sonarProxy);
