@@ -1,4 +1,0 @@
-/home/justin/818b-m2/playercontroller/build/CMakeFiles/rebuild_cache.dir
-/home/justin/818b-m2/playercontroller/build/CMakeFiles/edit_cache.dir
-/home/justin/818b-m2/playercontroller/build/CMakeFiles/opaque.dir
-/home/justin/818b-m2/playercontroller/build/CMakeFiles/opaquedriver.dir
